@@ -1,0 +1,16 @@
+server:
+  port: 18971 
+
+ca:
+  certificate:
+    issuer: CN=testServer
+    subject: CN=testServer
+    duration: 30
+    signatureAlgorithm: SHA256withRSA
+  privateKey:
+    algorithm: RSA
+    
+thing:
+  certificate:
+    duration: 10
+    signatureAlgorithm: SHA256withRSA
