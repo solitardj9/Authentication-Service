@@ -12,7 +12,7 @@
     HttpMethod : POST
     Path : http://{ip}:{[port}/ca
     {
-        "cert" : "{PEM String}",
+        "caCert" : "{PEM String}",
         "pvKey" : "{PEM String}"
     }
 </code>
