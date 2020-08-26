@@ -155,7 +155,7 @@ public class CertificateUtil {
 				pemReader.close();
 				return null;
 			}
-		}catch(Exception e) {
+		} catch(Exception e) {
 			logger.error(e.getMessage());
 			return null;
 		}
@@ -178,14 +178,41 @@ public class CertificateUtil {
 			PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
 			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
 
-			privatekey =keyFactory.generatePrivate(pkcs8EncodedKeySpec);
+			privatekey = keyFactory.generatePrivate(pkcs8EncodedKeySpec);
 
-		}catch (Exception e) {
+		} catch (Exception e) {
 			logger.error(e.toString());
 			return null;
 		}
 		
 		return privatekey; 
+	}
+	
+	public static PublicKey readPublicKey(String pem, String algorithm) {
+		//
+		PublicKey publicKey = null;
+		byte[] keyBytes = pem.getBytes(Charset.forName("UTF-8"));
+		String strPublicKey = null;
+		
+		try {
+			strPublicKey = new String(keyBytes, "UTF-8");
+			strPublicKey = strPublicKey.replaceAll("(-+BEGIN RSA PUBLIC KEY-+\\r?\\n|-+END RSA PUBLIC KEY-+\\r?\\n?)", "");
+			
+			BASE64Decoder decoder = new BASE64Decoder();
+			keyBytes = decoder.decodeBuffer(strPublicKey);
+			
+			// generate public key
+			PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+			
+			publicKey = keyFactory.generatePublic(pkcs8EncodedKeySpec);
+			
+		} catch (Exception e) {
+			logger.error(e.toString());
+			return null;
+		}
+		
+		return publicKey; 
 	}
 	
 	public static PKCS10CertificationRequest readPKCS10CertificationRequest(String csr) {
