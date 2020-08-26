@@ -10,7 +10,7 @@
 <pre>
 <code>
     HttpMethod : POST
-    Path : http://{ip}:{[port}/ca
+    Path : http://{ip}:{port}/ca
     {
         "caCert" : "{CA Certificate PEM String}",
         "pbKey" : "{Public Key PEM String}",
@@ -25,7 +25,7 @@
 <pre>
 <code>
     HttpMethod : POST
-    Path : http://{ip}:{[port}/certificate
+    Path : http://{ip}:{port}/certificate
     {
         "csr" : "{CSR PEM String}"
     }
