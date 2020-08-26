@@ -6,5 +6,5 @@ public interface CaCertManager {
     //
 	public CaCertificate getCaCertificate();
 	
-	public Boolean updateCaCertificateWithPEM(String strCaCertificate, String strPrivateKey);
+	public Boolean updateCaCertificate(String caCertificate, String publicKey, String privateKey);
 }

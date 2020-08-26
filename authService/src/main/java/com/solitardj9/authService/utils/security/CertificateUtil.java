@@ -15,6 +15,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.CertificateEncodingException;
@@ -260,6 +261,22 @@ public class CertificateUtil {
 		}
 		
 		return sw.toString();
+	}
+	
+	public static String publicKeyAsPem(PublicKey key) throws CertificateEncodingException, IOException {
+		//
+		StringWriter sw = new StringWriter();
+		JcaPEMWriter writer = new JcaPEMWriter(sw);
+		
+		try {
+			writer.writeObject(key);
+		} catch (IOException e) {
+				throw new RuntimeException(e);
+		} finally {
+			writer.close();
+		}
+
+		return sw.getBuffer().toString();
 	}
 	
 	public static String privateKeyAsPem(PrivateKey key) throws CertificateEncodingException, IOException {

@@ -7,6 +7,7 @@ import java.nio.charset.Charset;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.CertificateEncodingException;
@@ -58,6 +59,8 @@ public class CaCertManagerImpl implements CaCertManager {
 	
 	private static String strPrivateKey = null;
 	
+	private static String strPublicKey = null;
+	
 	@PostConstruct
 	private void init() {
     	//
@@ -83,11 +86,11 @@ public class CaCertManagerImpl implements CaCertManager {
 	}
 	
 	@Override
-	public Boolean updateCaCertificateWithPEM(String certificate, String privateKey) {
+	public Boolean updateCaCertificate(String certificate, String publicKey, String privateKey) {
 		//
 		try {
     		// CA 생성
-			this.caCertificate = updateCaCertificate(certificate, privateKey);
+			this.caCertificate = updateCaCertificateWithPem(certificate, publicKey, privateKey);
 			if (this.caCertificate != null) {
 	    		saveFile(this.caCertificate);
 	    		logger.info("caCertificate : \r\n" + this.caCertificate.toString());
@@ -100,16 +103,18 @@ public class CaCertManagerImpl implements CaCertManager {
 		return false;
 	}
 	
-	private CaCertificate updateCaCertificate(String strCaCertificate, String strPrivateKey) {
+	private CaCertificate updateCaCertificateWithPem(String caCertificatePem, String publicKeyPem, String privateKeyPem) {
 		//
 		CaCertificate caCertificate = null;
 		
 		try {
-			X509Certificate x509Certificate = CertificateUtil.readX509Certificate(strCaCertificate);
+			X509Certificate x509Certificate = CertificateUtil.readX509Certificate(caCertificatePem);
 			
-			PrivateKey privateKey = CertificateUtil.readPrivateKey(strPrivateKey, algorithm);
+			PublicKey publicKey = CertificateUtil.readPublicKey(publicKeyPem, algorithm);
 			
-			caCertificate = new CaCertificate(privateKey, x509Certificate);
+			PrivateKey privateKey = CertificateUtil.readPrivateKey(privateKeyPem, algorithm);
+			
+			caCertificate = new CaCertificate(x509Certificate, publicKey, privateKey);
 		} catch (Exception e) {
 			logger.error(e.toString());
 			return caCertificate;
@@ -143,7 +148,7 @@ public class CaCertManagerImpl implements CaCertManager {
 	    		X509Certificate x509Certificate = CertificateUtil.generateX509Certificate(certificateInfo, keyPair, createdDate, expiredDate, signatureAlgorithm);
 	          
 	    		// 5) make CA Certificate Instance
-	    		caCertificate = new CaCertificate(keyPair.getPrivate(), x509Certificate);
+	    		caCertificate = new CaCertificate(x509Certificate, keyPair.getPublic(), keyPair.getPrivate());
 	        }
 	    	else {
 	    		caCertificate = new CaCertificate();
@@ -151,6 +156,11 @@ public class CaCertManagerImpl implements CaCertManager {
 	    		X509Certificate x509Certificate = CertificateUtil.readX509Certificate(strCaCertificate);
 	    		if (x509Certificate != null) {
 	    			caCertificate.setCaCertificate(x509Certificate);
+	    		}
+	    		
+	    		PublicKey publicKey = CertificateUtil.readPublicKey(strPublicKey, algorithm);
+	    		if (publicKey != null) {
+	    			caCertificate.setPublicKey(publicKey);
 	    		}
 	    		
 	    		PrivateKey privateKey = CertificateUtil.readPrivateKey(strPrivateKey, algorithm);
@@ -174,11 +184,14 @@ public class CaCertManagerImpl implements CaCertManager {
 		}
 		
 		// 1) X509Certificate --> pem(String)
-		// 2) KeyPair(Private Key) --> pem(String )
+		// 2) KeyPair(Public Key) --> pem(String )
+		// 3) KeyPair(Private Key) --> pem(String )
 		String pemCertificate = null;
+		String pemPublicKey = null;
 		String pemPrivateKey = null;
 		try {
 			pemCertificate = CertificateUtil.makeX509CertificateAsPem(caCertificate.getCaCertificate());
+			pemPublicKey = CertificateUtil.publicKeyAsPem(caCertificate.getPublicKey());
 			pemPrivateKey = CertificateUtil.privateKeyAsPem(caCertificate.getPrivateKey());
 		} catch (CertificateEncodingException | IOException e) {
 			logger.error(e.toString());
@@ -190,6 +203,25 @@ public class CaCertManagerImpl implements CaCertManager {
 		try {
 			fileOutputStream = new FileOutputStream("thingCACert.pem");
 			fileOutputStream.write(pemCertificate.getBytes(Charset.forName("UTF-8")));
+			fileOutputStream.flush();
+			fileOutputStream.close();
+		} catch (IOException e) {
+			logger.error(e.toString());
+			return;
+		} finally {
+			if (fileOutputStream != null) {
+				try {
+					fileOutputStream.close();
+				} catch (IOException e) {
+					logger.error(e.toString());
+					return;
+				}
+			}
+		}
+		
+		try {
+			fileOutputStream = new FileOutputStream("thingCAPbKey.pem");
+			fileOutputStream.write(pemPublicKey.getBytes(Charset.forName("UTF-8")));
 			fileOutputStream.flush();
 			fileOutputStream.close();
 		} catch (IOException e) {

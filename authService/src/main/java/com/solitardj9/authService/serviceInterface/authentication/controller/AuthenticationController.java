@@ -63,8 +63,9 @@ public class AuthenticationController {
 	/**
 	 * @param requestMap
 	 * {
-	 * 		"cert" : "{PEM String}",
-	 *      "pvKey" : "{PEM String}"
+	 * 		"caCert" : "{Certificate PEM String}",
+	 *      "pbKey" : "{Public Key PEM String}"
+	 *      "pvKey" : "{Private Key PEM String}"
 	 * }
 	 * 
 	 * @return
@@ -74,6 +75,7 @@ public class AuthenticationController {
 	public ResponseEntity registerCa(@RequestBody Map<String, String> requestMap) {
 		//
 		String strCaCertificate = requestMap.get("caCert");
+		String strPublicKey = requestMap.get("pbKey");
 		String strPrivateKey = requestMap.get("pvKey");
 		
 		if (strCaCertificate == null || strCaCertificate.isEmpty()) {
@@ -85,7 +87,7 @@ public class AuthenticationController {
 		}
 		
 		try {
-			Boolean response = caCertManager.updateCaCertificateWithPEM(strCaCertificate, strPrivateKey);
+			Boolean response = caCertManager.updateCaCertificate(strCaCertificate, strPublicKey, strPrivateKey);
 			
 			if (response == false) {
 				return new ResponseEntity(StatusCode.INTERNAL_SERVER_ERROR.getMessage() , HttpStatus.INTERNAL_SERVER_ERROR);

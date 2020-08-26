@@ -76,7 +76,7 @@ public class ThingCertManagerImpl implements ThingCertManager {
 		
 		// 3) create Expired Date
 		LocalDate now = LocalDate.now();
-		Date createdDate = Date.valueOf(now);															// start of validity
+		Date createdDate = Date.valueOf(now);													// start of validity
 		Date expiredDate = Date.valueOf(now.plusYears(certificateInfo.getValidDuration()));		// end of validity
 		
 		// 4) create Thing Certificate
