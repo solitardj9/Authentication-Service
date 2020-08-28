@@ -216,6 +216,40 @@ public class CertificateUtil {
 		return publicKey; 
 	}
 	
+	public static PKCS10CertificationRequest generatePKCS10CertificationRequest(String signatureAlgorithm, KeyPair subjectkey, String stringInfo) throws OperatorCreationException, NoSuchAlgorithmException {
+        	//
+        	PKCS10CertificationRequest csr = null;
+        	
+        	X500Principal subject = new X500Principal(stringInfo);
+        	ContentSigner signGen = new JcaContentSignerBuilder(signatureAlgorithm).build(subjectkey.getPrivate());
+		        
+        	PKCS10CertificationRequestBuilder builder = new JcaPKCS10CertificationRequestBuilder(subject, subjectkey.getPublic());
+        	
+        	csr = builder.build(signGen);
+        	
+        	return csr;
+	}
+	
+	public static String readCertificationRequestAsPem(PKCS10CertificationRequest pkcs10CertificationRequest) throws CertificateEncodingException, IOException {
+		//
+		StringWriter sw = new StringWriter();
+		PemWriter writer = new PemWriter(sw);
+
+		PemObject pemObject = new PemObject("CERTIFICATE REQUEST", pkcs10CertificationRequest.getEncoded());
+
+		try {
+		    writer.writeObject(pemObject);
+		    writer.flush();
+		}
+		catch (IOException e) {
+		    throw new RuntimeException(e);
+		}
+		finally {
+		    writer.close();
+		}
+		return sw.toString();
+	}
+	
 	public static PKCS10CertificationRequest readPKCS10CertificationRequest(String csr) {
 		//
 		try {
