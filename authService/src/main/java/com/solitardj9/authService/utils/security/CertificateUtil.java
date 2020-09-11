@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -23,6 +24,8 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPrivateKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.sql.Date;
 
 import javax.security.auth.x500.X500Principal;
@@ -82,7 +85,7 @@ public class CertificateUtil {
     		builder.addExtension(Extension.keyUsage, true, new KeyUsage(certificateInfo.getKeyUsage()));
     		builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(certificateInfo.getBasicConstratints()));
     	} catch (CertIOException e) {
-    		logger.error(e.getMessage());
+    		logger.error("[CertificateUtil].generateX509Certificate : error = " + e);
     		return null;
         }
     	
@@ -92,7 +95,7 @@ public class CertificateUtil {
     		signGen = new JcaContentSignerBuilder(signatureAlgorithm).setProvider("BC").build(keyPair.getPrivate());
     		return new JcaX509CertificateConverter().getCertificate(builder.build(signGen));
     	} catch (CertificateException | OperatorCreationException e) {
-    		logger.error(e.getMessage());
+    		logger.error("[CertificateUtil].generateX509Certificate : error = " + e);
         	return null;
         }
     }
@@ -114,7 +117,7 @@ public class CertificateUtil {
 															jcaPKCS10CertificationRequest.getSubject(),					// subject name of CSR
 															jcaPKCS10CertificationRequest.getPublicKey());				// public key of CSR
 		} catch (InvalidKeyException | NoSuchAlgorithmException e) {
-			logger.error(e.getMessage());
+			logger.error("[CertificateUtil].generateX509Certificate : error = " + e);
     		return null;
 		}
 		
@@ -123,7 +126,7 @@ public class CertificateUtil {
     		builder.addExtension(Extension.keyUsage, true, new KeyUsage(certificateInfo.getKeyUsage()));
     		builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(certificateInfo.getBasicConstratints()));
     	} catch (CertIOException e) {
-    		logger.error(e.getMessage());
+    		logger.error("[CertificateUtil].generateX509Certificate : error = " + e);
     		return null;
         }
     	
@@ -131,7 +134,7 @@ public class CertificateUtil {
     	try {
 			return new JcaX509CertificateConverter().getCertificate(builder.build(new JcaContentSignerBuilder(signatureAlgorithm).setProvider("BC").build(privateKey)));
 		} catch (CertificateException | OperatorCreationException e) {
-			logger.error(e.getMessage());
+			logger.error("[CertificateUtil].generateX509Certificate : error = " + e);
         	return null;
 		}
 	}
@@ -141,7 +144,7 @@ public class CertificateUtil {
 		init();
 		
 		if (pem == null || pem.isEmpty()) {
-			logger.error("pem is null.");
+			logger.error("[CertificateUtil].generateX509Certificate : error = pem is null.");
         	return null;
 		}
 
@@ -156,12 +159,12 @@ public class CertificateUtil {
 				return cert;
 			}
 			else {
-				logger.error("pem object is null.");
+				logger.error("[CertificateUtil].generateX509Certificate : error = pem object is null.");
 				pemReader.close();
 				return null;
 			}
 		} catch(Exception e) {
-			logger.error(e.getMessage());
+			logger.error("[CertificateUtil].generateX509Certificate : error = " + e);
 			return null;
 		}
 	}
@@ -175,18 +178,26 @@ public class CertificateUtil {
 		try {
 			strPrivateKey = new String(keyBytes, "UTF-8");
 			strPrivateKey = strPrivateKey.replaceAll("(-+BEGIN RSA PRIVATE KEY-+\\r?\\n|-+END RSA PRIVATE KEY-+\\r?\\n?)", "");
+			strPrivateKey = strPrivateKey.replaceAll("(-+BEGIN PRIVATE KEY-+\\r?\\n|-+END PRIVATE KEY-+\\r?\\n?)", "");
 
 			BASE64Decoder decoder = new BASE64Decoder();
 			keyBytes = decoder.decodeBuffer(strPrivateKey);
 
 			// generate private key
-			PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
-			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
-
-			privatekey = keyFactory.generatePrivate(pkcs8EncodedKeySpec);
-
-		} catch (Exception e) {
-			logger.error(e.toString());
+			try {
+				PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
+    			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+    			privatekey = keyFactory.generatePrivate(pkcs8EncodedKeySpec);
+			} catch(Exception e) {
+				//e.printStackTrace();
+				
+				String exponentBase64 = "65537";
+				RSAPrivateKeySpec rsaPrivateKeySpec = new RSAPrivateKeySpec(new BigInteger(1, keyBytes), new BigInteger(1, decoder.decodeBuffer(exponentBase64)));
+    			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+    			privatekey = keyFactory.generatePrivate(rsaPrivateKeySpec);
+			}
+		}catch (Exception e) {
+			logger.error("[CertificateUtil].readPrivateKey : error = " + e);
 			return null;
 		}
 		
@@ -194,7 +205,7 @@ public class CertificateUtil {
 	}
 	
 	public static PublicKey readPublicKey(String pem, String algorithm) {
-		//
+        //
 		PublicKey publicKey = null;
 		byte[] keyBytes = pem.getBytes(Charset.forName("UTF-8"));
 		String strPublicKey = null;
@@ -202,23 +213,30 @@ public class CertificateUtil {
 		try {
 			strPublicKey = new String(keyBytes, "UTF-8");
 			strPublicKey = strPublicKey.replaceAll("(-+BEGIN RSA PUBLIC KEY-+\\r?\\n|-+END RSA PUBLIC KEY-+\\r?\\n?)", "");
+			strPublicKey = strPublicKey.replaceAll("(-+BEGIN PUBLIC KEY-+\\r?\\n|-+END PUBLIC KEY-+\\r?\\n?)", "");
 			
 			BASE64Decoder decoder = new BASE64Decoder();
 			keyBytes = decoder.decodeBuffer(strPublicKey);
 			
 			// generate public key
-			PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
-			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
-			
-			publicKey = keyFactory.generatePublic(pkcs8EncodedKeySpec);
-			
+			try {
+				PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
+				KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+				publicKey = keyFactory.generatePublic(pkcs8EncodedKeySpec);
+			} catch(Exception e) {
+				//e.printStackTrace();
+				
+				X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(keyBytes);
+				KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+				publicKey = keyFactory.generatePublic(x509EncodedKeySpec);
+			}
 		} catch (Exception e) {
-			logger.error(e.toString());
+			logger.error("[CertificateUtil].readPublicKey : error = " + e);
 			return null;
 		}
 		
 		return publicKey; 
-	}
+    }
 	
 	public static PKCS10CertificationRequest generatePKCS10CertificationRequest(String signatureAlgorithm, KeyPair subjectkey, String stringInfo) throws OperatorCreationException, NoSuchAlgorithmException {
         	//
@@ -262,7 +280,7 @@ public class CertificateUtil {
 			try {
 				pemStream = new ByteArrayInputStream(csr.getBytes(Charset.forName("UTF-8")));
 			} catch (Exception ex) {
-				logger.error("csr is not pem format.");
+				logger.error("[CertificateUtil].readPrivateKey : error = csr is not pem format.");
 			}
 			PEMParser pemParser = new PEMParser(new BufferedReader(new InputStreamReader(pemStream, StandardCharsets.UTF_8)));       
 			Object object = pemParser.readObject();
@@ -273,12 +291,12 @@ public class CertificateUtil {
 				return pkcs10CertificationRequest;
 			}
 			else {
-				logger.error("PKCS10CertificationRequest format error.");
+				logger.error("[CertificateUtil].readPrivateKey : error = PKCS10CertificationRequest format error.");
 				pemParser.close();
 				return null;
 			}
 		} catch(Exception e) {
-			logger.error(e.getMessage());
+			logger.error("[CertificateUtil].readPKCS10CertificationRequest : error = " + e);
 			return null;
 		}
 	}
