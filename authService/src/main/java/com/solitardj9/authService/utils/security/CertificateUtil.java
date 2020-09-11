@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -23,6 +24,8 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPrivateKeySpec;
+import java.security.spec.RSAPublicKeySpec;
 import java.sql.Date;
 
 import javax.security.auth.x500.X500Principal;
@@ -180,12 +183,18 @@ public class CertificateUtil {
 			keyBytes = decoder.decodeBuffer(strPrivateKey);
 
 			// generate private key
-			PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
-			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+			try {
+				PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
+    			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+    			privatekey = keyFactory.generatePrivate(pkcs8EncodedKeySpec);
+			} catch(Exception e) {
+				String exponentBase64 = "65537";
+				RSAPrivateKeySpec rsaPrivateKeySpec = new RSAPrivateKeySpec(new BigInteger(1, keyBytes), new BigInteger(1, decoder.decodeBuffer(exponentBase64)));
+    			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+    			privatekey = keyFactory.generatePrivate(rsaPrivateKeySpec);
+			}
 
-			privatekey = keyFactory.generatePrivate(pkcs8EncodedKeySpec);
-
-		} catch (Exception e) {
+		}catch (Exception e) {
 			logger.error(e.toString());
 			return null;
 		}
@@ -194,7 +203,7 @@ public class CertificateUtil {
 	}
 	
 	public static PublicKey readPublicKey(String pem, String algorithm) {
-		//
+        //
 		PublicKey publicKey = null;
 		byte[] keyBytes = pem.getBytes(Charset.forName("UTF-8"));
 		String strPublicKey = null;
@@ -202,15 +211,22 @@ public class CertificateUtil {
 		try {
 			strPublicKey = new String(keyBytes, "UTF-8");
 			strPublicKey = strPublicKey.replaceAll("(-+BEGIN RSA PUBLIC KEY-+\\r?\\n|-+END RSA PUBLIC KEY-+\\r?\\n?)", "");
+			strPublicKey = strPublicKey.replaceAll("(-+BEGIN PUBLIC KEY-+\\r?\\n|-+END PUBLIC KEY-+\\r?\\n?)", "");
 			
 			BASE64Decoder decoder = new BASE64Decoder();
 			keyBytes = decoder.decodeBuffer(strPublicKey);
 			
 			// generate public key
-			PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
-			KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
-			
-			publicKey = keyFactory.generatePublic(pkcs8EncodedKeySpec);
+			try {
+				PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(keyBytes);
+				KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+				publicKey = keyFactory.generatePublic(pkcs8EncodedKeySpec);
+			} catch(Exception e) {
+				String exponentBase64 = "65537";
+				RSAPublicKeySpec rsaPublicKeySpec = new RSAPublicKeySpec(new BigInteger(1, keyBytes), new BigInteger(1, decoder.decodeBuffer(exponentBase64)));
+				KeyFactory keyFactory = KeyFactory.getInstance(algorithm);
+				publicKey = keyFactory.generatePublic(rsaPublicKeySpec);
+			}
 			
 		} catch (Exception e) {
 			logger.error(e.toString());
@@ -218,7 +234,7 @@ public class CertificateUtil {
 		}
 		
 		return publicKey; 
-	}
+    }
 	
 	public static PKCS10CertificationRequest generatePKCS10CertificationRequest(String signatureAlgorithm, KeyPair subjectkey, String stringInfo) throws OperatorCreationException, NoSuchAlgorithmException {
         	//
